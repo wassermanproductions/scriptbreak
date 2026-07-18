@@ -24,22 +24,27 @@ writer/director, [Wasserman Productions](https://wassermanproductions.com) ·
 > **[ko-fi.com/samwasserman](https://ko-fi.com/samwasserman)**.
 > Donations are optional — but extremely helpful and appreciated.
 
-Part of the **Wasserman Filmmaker Suite**, alongside [Blockout](https://github.com/wassermanproductions/blockout),
+Part of the [**Wasserman Filmmaker Suite**](https://github.com/wassermanproductions/wassermans-filmmaker-suite), alongside [Blockout](https://github.com/wassermanproductions/blockout),
 [Motion Previs Studio](https://github.com/wassermanproductions/motion-previs-studio),
 [Master Canvas](https://github.com/wassermanproductions/master-canvas),
-[Storyboard](https://github.com/wassermanproductions/storyboard), and
-[DaVinci MCP](https://github.com/wassermanproductions/davinci-mcp).
+[Storyboard Reference Studio](https://github.com/wassermanproductions/storyboard-reference-studio), and
+[DaVinci MCP](https://github.com/wassermanproductions/unofficial-davinci-mcp).
 
 ## ⬇ Download
 
-**[Download the latest desktop release →](../../releases/latest)** — one
-click, grab the installer for your OS:
+**[Download the latest desktop release →](../../releases/latest)** — grab
+the installer for your OS, then follow the one extra step below (the builds
+aren't code-signed yet, so each OS shows a scary-but-harmless warning the
+first time):
 
-| Platform | File to grab |
-|---|---|
-| macOS (Apple Silicon & Intel) | `.dmg` |
-| Windows | `.msi` or `.exe` |
-| Linux | `.AppImage`, `.deb`, or `.rpm` |
+| Platform | File to grab | After downloading |
+|---|---|---|
+| macOS — Apple Silicon (M1–M4) | `ScriptBreak_x.x.x_aarch64.dmg` | Open the DMG, drag **ScriptBreak** into **Applications**, then paste this into Terminal once: `xattr -cr /Applications/ScriptBreak.app` — now it opens normally. (Without this, macOS falsely claims the app is "damaged.") |
+| macOS — Intel | `ScriptBreak_x.x.x_x64.dmg` | Same as above. |
+| Windows | `.msi` or `-setup.exe` | If SmartScreen appears, click **More info → Run anyway**. |
+| Linux | `.AppImage`, `.deb`, or `.rpm` | For the AppImage: `chmod +x ScriptBreak_*.AppImage`, then run it. |
+
+> **Not sure which Mac you have?**  → Apple menu → About This Mac. "Apple M1/M2/M3/M4" = `aarch64`, "Intel" = `x64`.
 
 **Or skip installing entirely:** the whole app is one file — download
 [`src/index.html`](src/index.html?raw=1) and open it in any browser.
@@ -132,7 +137,9 @@ integration.
 ## Quick start
 
 **Option A — download an installer.** Grab the build for your OS from the
-[Releases](../../releases) page and install it like any other app.
+[Releases](../../releases) page and install it like any other app — see the
+[Download](#-download) table for the one extra first-launch step on macOS
+and Windows (the builds aren't code-signed yet).
 
 **Option B — just open the file.** The entire app is one HTML file. Download
 [`src/index.html`](src/index.html) and double-click it, or drag it into any
@@ -220,7 +227,8 @@ the desktop wrapper, it lives entirely in `src-tauri/`.
 ## License
 
 Apache License 2.0 — see [LICENSE](LICENSE), same as the rest of the
-Wasserman Filmmaker Suite. © 2026 Sam Wasserman / Wasserman Productions.
+[Wasserman Filmmaker Suite](https://github.com/wassermanproductions/wassermans-filmmaker-suite).
+© 2026 Sam Wasserman / Wasserman Productions.
 
 ## Author & links
 
