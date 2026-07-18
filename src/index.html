@@ -314,6 +314,7 @@
             <div style="color:var(--tx3);font-size:12px;margin-top:6px">Created by <b style="color:var(--tx)">Sam Wasserman</b> ·
               <a href="https://wassermanproductions.com" target="_blank" style="color:var(--amber2)">wassermanproductions.com</a> ·
               <a href="https://wasserman.ai" target="_blank" style="color:var(--amber2)">wasserman.ai</a> ·
+              <a href="https://ko-fi.com/samwasserman" target="_blank" style="color:var(--amber2)">☕ Ko-fi</a> ·
               <a href="https://github.com/wassermanproductions" target="_blank" style="color:var(--amber2)">GitHub</a> ·
               Apache License 2.0</div>
           </div>
@@ -3001,6 +3002,16 @@ function renderExport(){
       if (window.__TAURI__.event && window.__TAURI__.event.listen){
         window.__TAURI__.event.listen('open-project-file', ev=>{ if (ev && ev.payload) loadProject(ev.payload); });
       }
+      // Desktop build: the webview blocks target="_blank" navigation, so route
+      // external links through the opener plugin (default browser) instead.
+      document.addEventListener('click', e=>{
+        const a = e.target.closest && e.target.closest('a[href^="http"]');
+        if (!a) return;
+        e.preventDefault();
+        const t = window.__TAURI__;
+        if (t.opener && t.opener.openUrl) t.opener.openUrl(a.href);
+        else t.core.invoke('plugin:opener|open_url', { url: a.href }).catch(()=>{});
+      });
     }
   }catch(e){}
 })();

@@ -36,6 +36,7 @@ fn initial_file() -> Option<String> {
 
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![initial_file])
         .build(tauri::generate_context!())
         .expect("error while building ScriptBreak")
