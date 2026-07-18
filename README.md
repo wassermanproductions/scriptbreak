@@ -194,9 +194,10 @@ overall privacy also depends on your own device and system setup.
 
 ## Troubleshooting
 
-- **macOS says the app is "damaged" or can't be opened** — unsigned builds
-  from the Releases page aren't notarized. Right-click the app and choose
-  **Open** (instead of double-clicking), or run:
+- **macOS says the app is "damaged" and should be moved to the Trash** —
+  it isn't damaged; unsigned builds from the Releases page aren't notarized,
+  so Gatekeeper blocks them. After copying ScriptBreak to Applications, run
+  this once in Terminal, then open the app normally:
   ```bash
   xattr -cr /Applications/ScriptBreak.app
   ```
