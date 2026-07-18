@@ -32,19 +32,41 @@ Part of the [**Wasserman Filmmaker Suite**](https://github.com/wassermanproducti
 
 ## ⬇ Download
 
-**[Download the latest desktop release →](../../releases/latest)** — grab
-the installer for your OS, then follow the one extra step below (the builds
-aren't code-signed yet, so each OS shows a scary-but-harmless warning the
-first time):
+**macOS — paste one line, done.** Open Terminal (⌘-Space, type "Terminal")
+and paste:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/wassermanproductions/scriptbreak/master/install.sh | bash
+```
+
+It detects your Mac (Apple Silicon or Intel), downloads the latest build,
+installs it to Applications, and opens it — no warnings, nothing else to do.
+([The script](install.sh) is ~30 lines, read it if you like.)
+
+**Windows & Linux — [download the latest release →](../../releases/latest)**
 
 | Platform | File to grab | After downloading |
 |---|---|---|
-| macOS — Apple Silicon (M1–M4) | `ScriptBreak_x.x.x_aarch64.dmg` | Open the DMG, drag **ScriptBreak** into **Applications**, then paste this into Terminal once: `xattr -cr /Applications/ScriptBreak.app` — now it opens normally. (Without this, macOS falsely claims the app is "damaged.") |
-| macOS — Intel | `ScriptBreak_x.x.x_x64.dmg` | Same as above. |
 | Windows | `.msi` or `-setup.exe` | If SmartScreen appears, click **More info → Run anyway**. |
 | Linux | `.AppImage`, `.deb`, or `.rpm` | For the AppImage: `chmod +x ScriptBreak_*.AppImage`, then run it. |
 
-> **Not sure which Mac you have?**  → Apple menu → About This Mac. "Apple M1/M2/M3/M4" = `aarch64`, "Intel" = `x64`.
+<details>
+<summary><b>Prefer downloading the macOS DMG by hand?</b></summary>
+
+Grab `ScriptBreak_x.x.x_aarch64.dmg` (Apple Silicon M1–M4) or
+`ScriptBreak_x.x.x_x64.dmg` (Intel) from the
+[Releases](../../releases/latest) page and drag **ScriptBreak** into
+**Applications**. Because browser downloads of unsigned apps are quarantined,
+macOS will falsely claim the app is "damaged" — paste this into Terminal once
+and it opens normally from then on:
+
+```bash
+xattr -cr /Applications/ScriptBreak.app
+```
+
+(The install script above avoids this entirely — Terminal downloads aren't
+quarantined.)
+</details>
 
 **Or skip installing entirely:** the whole app is one file — download
 [`src/index.html`](src/index.html?raw=1) and open it in any browser.
@@ -136,10 +158,10 @@ integration.
 
 ## Quick start
 
-**Option A — download an installer.** Grab the build for your OS from the
-[Releases](../../releases) page and install it like any other app — see the
-[Download](#-download) table for the one extra first-launch step on macOS
-and Windows (the builds aren't code-signed yet).
+**Option A — install the desktop app.** On macOS, paste the one-line
+installer from the [Download](#-download) section into Terminal. On Windows
+and Linux, grab the build for your OS from the
+[Releases](../../releases) page and install it like any other app.
 
 **Option B — just open the file.** The entire app is one HTML file. Download
 [`src/index.html`](src/index.html) and double-click it, or drag it into any
