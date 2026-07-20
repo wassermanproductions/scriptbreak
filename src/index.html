@@ -671,7 +671,7 @@ function fallbackCopy(txt){
   let ok=false; try{ ok = document.execCommand('copy'); }catch(e){}
   ta.remove(); return ok;
 }
-function csvCell(v){ v = String(v??''); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; }
+function csvCell(v){ v = String(v??''); if (/^[=+\-@\t\r]/.test(v)) v = "'"+v; return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; }
 
 /* ================= fountain / fdx / txt parsing ================= */
 function parseScript(text, filename){
@@ -2915,19 +2915,20 @@ function buildDood(plan){
 }
 function buildScheduleCSV(scenes, opts){
   const plan = buildScheduleDays(scenes, opts);
-  const rows = [['Day','Location','I/E','Day/Night','Scenes','Pages (1/8)','Cast IDs','Cast']];
+  const rows = [[SCHED_CSV_NOTE], ['Day','Location','I/E','Day/Night','Scenes','Pages (1/8)','Cast IDs','Cast']];
   plan.days.forEach(d=>rows.push([d.n, d.location, d.ie, d.regimeLabel, d.sceneNums.join(' '), eighthsFmt(d.eighths), d.castIds.join(' '), d.castNames.join('; ')]));
   return rows.map(r=>r.map(csvCell).join(',')).join('\n');
 }
 function buildDoodCSV(scenes, opts){
   const plan = buildScheduleDays(scenes, opts), dood = buildDood(plan);
   const header = ['ID','Character', ...plan.days.map(d=>'Day '+d.n), 'Work','Hold','Total'];
-  const rows = [header];
+  const rows = [[SCHED_CSV_NOTE], header];
   dood.cast.forEach(c=>rows.push([c.id, c.name, ...c.codes, c.work, c.hold, c.total]));
   return rows.map(r=>r.map(csvCell).join(',')).join('\n');
 }
 
 const SCHED_CAVEAT = 'Draft stripboard generated from ScriptBreak’s auto-parsed breakdown. Cast presence is inferred from dialogue only — silent / background cast are not detected, and page counts may be estimated. This is a starting point, not a locked schedule: it does not account for cast or location availability, company moves, day↔night turnaround, or child / stunt constraints. Verify with your 1st AD before scheduling.';
+const SCHED_CSV_NOTE = 'DRAFT — auto-parsed from dialogue only. Cast presence may be incomplete. Not a locked schedule — verify with your 1st AD.';
 
 function schedPrintHead(title){
   return `<!DOCTYPE html><html><head><title>${esc(S.title)} — ${esc(title)}</title><style>

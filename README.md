@@ -231,7 +231,7 @@ The agent gets eleven read-only tools: `get_breakdown`, `list_scenes`,
 `get_shot_list`, `list_generators`, `export_prompt_pack`, `get_schedule`, and
 `get_day_out_of_days`. `export_prompt_pack` reproduces ScriptBreak's AI video,
 storyboard-frame, coverage-consult, and script-companion packs (with the same
-per-generator dialects) for any scene range, page range, or filter;
+per-generator dialects) for any scene range, page range, or structured filter;
 `get_schedule` and `get_day_out_of_days` return the draft shooting schedule and
 cast Day Out of Days. See **[mcp/README.md](mcp/README.md)** for the full tool
 reference and Codex/Hermes/generic config.

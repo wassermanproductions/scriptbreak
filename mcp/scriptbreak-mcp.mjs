@@ -597,7 +597,7 @@ ${['characters', 'locations', 'props'].map((t) => {
  * schedule. See SCHED_CAVEAT below and the get_schedule / get_day_out_of_days
  * tool descriptions.
  */
-function csvCell(v) { v = String(v == null ? '' : v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v }
+function csvCell(v) { v = String(v == null ? '' : v); if (/^[=+\-@\t\r]/.test(v)) v = "'" + v; return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v }
 
 const SCHED_REGIME_RANK = { DAY: 0, MAGIC: 1, NIGHT: 2 }
 const SCHED_REGIME_LABEL = { DAY: 'DAY', MAGIC: 'DUSK/DAWN', NIGHT: 'NIGHT' }
@@ -676,18 +676,19 @@ function buildDood(plan) {
 }
 function buildScheduleCSV(scenes, opts) {
   const plan = buildScheduleDays(scenes, opts)
-  const rows = [['Day', 'Location', 'I/E', 'Day/Night', 'Scenes', 'Pages (1/8)', 'Cast IDs', 'Cast']]
+  const rows = [[SCHED_CSV_NOTE], ['Day', 'Location', 'I/E', 'Day/Night', 'Scenes', 'Pages (1/8)', 'Cast IDs', 'Cast']]
   plan.days.forEach((d) => rows.push([d.n, d.location, d.ie, d.regimeLabel, d.sceneNums.join(' '), eighthsFmt(d.eighths), d.castIds.join(' '), d.castNames.join('; ')]))
   return rows.map((r) => r.map(csvCell).join(',')).join('\n')
 }
 function buildDoodCSV(scenes, opts) {
   const plan = buildScheduleDays(scenes, opts), dood = buildDood(plan)
   const header = ['ID', 'Character', ...plan.days.map((d) => 'Day ' + d.n), 'Work', 'Hold', 'Total']
-  const rows = [header]
+  const rows = [[SCHED_CSV_NOTE], header]
   dood.cast.forEach((c) => rows.push([c.id, c.name, ...c.codes, c.work, c.hold, c.total]))
   return rows.map((r) => r.map(csvCell).join(',')).join('\n')
 }
 const SCHED_CAVEAT = 'Draft stripboard generated from ScriptBreak’s auto-parsed breakdown. Cast presence is inferred from dialogue only — silent / background cast are not detected, and page counts may be estimated. This is a starting point, not a locked schedule: it does not account for cast or location availability, company moves, day↔night turnaround, or child / stunt constraints. Verify with your 1st AD before scheduling.'
+const SCHED_CSV_NOTE = 'DRAFT — auto-parsed from dialogue only. Cast presence may be incomplete. Not a locked schedule — verify with your 1st AD.'
 
 /* ------------------------------ generators ------------------------------ */
 
@@ -1044,7 +1045,7 @@ function runTool(name, args) {
       const path = resolveProjectPath(args)
       const { S } = loadProject(path)
       const exp = scopeFromArgs(args)
-      const opts = { pagesPerDay: args.pagesPerDay || 5 }
+      const _ppd = Number(args.pagesPerDay); const opts = { pagesPerDay: _ppd > 0 ? _ppd : 5 }
       const scenes = exportScenes(S, exp)
       const plan = buildScheduleDays(scenes, opts)
       return {
@@ -1066,7 +1067,7 @@ function runTool(name, args) {
       const path = resolveProjectPath(args)
       const { S } = loadProject(path)
       const exp = scopeFromArgs(args)
-      const opts = { pagesPerDay: args.pagesPerDay || 5 }
+      const _ppd = Number(args.pagesPerDay); const opts = { pagesPerDay: _ppd > 0 ? _ppd : 5 }
       const scenes = exportScenes(S, exp)
       const plan = buildScheduleDays(scenes, opts)
       const dood = buildDood(plan)

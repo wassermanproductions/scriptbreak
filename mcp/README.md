@@ -2,7 +2,7 @@
 
 Headless MCP (Model Context Protocol) server for **[ScriptBreak](https://github.com/wassermanproductions/scriptbreak)** — the local-first screenplay breakdown app. With this server connected, an AI agent can read a ScriptBreak breakdown and export its prompt packs **without opening the desktop app** — it works directly on a saved `.scriptbreak` project file on disk.
 
-An agent can pull the breakdown summary, list and read scenes, filter elements by category, read the character and location bibles, get the shot list, reproduce ScriptBreak's own AI prompt packs (video, stills, coverage consult, script companion) for any scene range, page range, or filter — byte-for-byte the same markdown the app writes — and generate a draft shooting schedule and cast Day Out of Days.
+An agent can pull the breakdown summary, list and read scenes, filter elements by category, read the character and location bibles, get the shot list, reproduce ScriptBreak's own AI prompt packs (video, stills, coverage consult, script companion) for any scene range, page range, or structured filter — the same markdown the app writes — and generate a draft shooting schedule and cast Day Out of Days.
 
 Zero dependencies. Node ≥ 18. One file.
 
@@ -105,11 +105,11 @@ Call **`get_breakdown` first** — its response explains the data conventions (s
 - `scope: "scenes"` + `sceneRange: "1-20, 34, 50A"` — a scene-number range/list.
 - `scope: "pages"` + `pageRange: "1-12"` — a page range.
 - `scope: "shots"` — only scenes that have a shot list.
-- `scope: "filter"` + any of `int`, `ext`, `day`, `night`, `character`, `location` — the breakdown filters.
+- `scope: "filter"` + any of `int`, `ext`, `day`, `night`, `character`, `location` — the breakdown's **structured** filters. (The app's free-text search box is a live-UI concept and is not reproduced here; `character`/`location` match exactly. With no criteria set, `filter` returns all scenes.)
 
 (Passing `sceneRange` / `pageRange` / a filter without `scope` implies the matching scope.)
 
-The prompt-pack markdown — header, PROJECT LOOK block, character/location/prop bibles, the per-generator platform style guide, and the scene-by-scene shot listing — is generated from the same templates and per-generator dialects ScriptBreak uses internally, so packs produced here match the app's exports exactly.
+The prompt-pack markdown — header, PROJECT LOOK block, character/location/prop bibles, the per-generator platform style guide, and the scene-by-scene shot listing — is generated from the same templates and per-generator dialects ScriptBreak uses internally, so packs produced here match the app's exports byte-for-byte for `all` / scene / page scopes (the `filter` scope reproduces the structured toggles only, and the header's generation-date line is naturally locale- and day-dependent).
 
 A typical agent session: `get_breakdown` → `list_scenes` (with a filter) → `get_scene` for the beats that matter → `export_prompt_pack` with a video or stills generator over a scene range → hand the markdown to your generator.
 
