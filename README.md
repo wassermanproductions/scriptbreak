@@ -3,7 +3,7 @@
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License: Apache 2.0"></a>
   <a href="../../releases/latest"><img src="https://img.shields.io/github/v/release/wassermanproductions/scriptbreak?include_prereleases&label=download" alt="Latest release"></a>
-  <img src="https://img.shields.io/badge/platforms-macOS%20·%20Windows%20·%20Linux%20·%20Browser-2f7bf6" alt="Platforms">
+  <img src="https://img.shields.io/badge/platforms-macOS%20·%20Windows%20·%20Linux-2f7bf6" alt="Platforms">
   <a href="https://ko-fi.com/samwasserman"><img src="https://img.shields.io/badge/Ko--fi-support%20Sam%20Wasserman-ff5e5b?logo=kofi&logoColor=white" alt="Support Sam Wasserman on Ko-fi"></a>
 </p>
 
@@ -12,7 +12,7 @@
 A screenplay breakdown app that doesn't phone home. Load a script, get a full
 breakdown — scenes, characters, locations, props, shot lists — and export
 prompt packs that turn any LLM into your assistant director. No API keys, no
-accounts, no cloud. It's one HTML file and, if you want it, a native wrapper.
+accounts, no cloud — it runs entirely on your machine.
 
 **Created by [Sam Wasserman](https://wassermanproductions.com)** —
 writer/director, [Wasserman Productions](https://wassermanproductions.com) ·
@@ -67,9 +67,6 @@ xattr -cr /Applications/ScriptBreak.app
 (The install script above avoids this entirely — Terminal downloads aren't
 quarantined.)
 </details>
-
-**Or skip installing entirely:** the whole app is one file — download
-[`src/index.html`](src/index.html?raw=1) and open it in any browser.
 
 ## Screenshots
 
@@ -140,7 +137,7 @@ CSVs, or everything at once as a zip:
   Seedream, Midjourney). Paste one into ChatGPT, Claude, Gemini, a local
   model — no integration needed. Scope any export to scene ranges, page
   ranges, or your current filters, or download everything as one zip bundle.
-- **Zero setup** — no build step, no server, no database. Open a file and go.
+- **Zero setup** — no server, no database, no account. Install the app, load a script, and go.
 
 ## Why no API keys
 
@@ -158,14 +155,10 @@ integration.
 
 ## Quick start
 
-**Option A — install the desktop app.** On macOS, paste the one-line
-installer from the [Download](#-download) section into Terminal. On Windows
-and Linux, grab the build for your OS from the
-[Releases](../../releases) page and install it like any other app.
-
-**Option B — just open the file.** The entire app is one HTML file. Download
-[`src/index.html`](src/index.html) and double-click it, or drag it into any
-browser. There's nothing to install and nothing to build.
+Install the desktop app. On macOS, paste the one-line installer from the
+[Download](#-download) section into Terminal. On Windows and Linux, grab the
+build for your OS from the [Releases](../../releases) page and install it like
+any other app. Then launch ScriptBreak and load a script.
 
 ## Building from source
 
@@ -210,9 +203,6 @@ works in installed desktop builds (see [Quick start](#quick-start) /
 [Building from source](#building-from-source)); the OS registers the file
 association when the app is installed (Windows/Linux) or, on macOS, the
 first time the app is launched.
-
-If you're using the plain-browser version (just `src/index.html`), OS-level
-file associations don't apply — use the in-app **Open…** button instead.
 
 ## Privacy
 
