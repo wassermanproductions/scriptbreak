@@ -589,6 +589,106 @@ ${['characters', 'locations', 'props'].map((t) => {
   return md
 }
 
+/* -------------------- shooting schedule & Day Out of Days ----------------
+ * These helpers are duplicated VERBATIM from ScriptBreak's index.html so the
+ * app and this server produce the same suggested stripboard + DOOD. Keep the
+ * two copies identical. Cast presence is inferred from dialogue only (silent /
+ * background cast are not detected), so this is a draft — not a locked
+ * schedule. See SCHED_CAVEAT below and the get_schedule / get_day_out_of_days
+ * tool descriptions.
+ */
+function csvCell(v) { v = String(v == null ? '' : v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v }
+
+const SCHED_REGIME_RANK = { DAY: 0, MAGIC: 1, NIGHT: 2 }
+const SCHED_REGIME_LABEL = { DAY: 'DAY', MAGIC: 'DUSK/DAWN', NIGHT: 'NIGHT' }
+function schedRegime(sc) { const b = sc.todBucket || ''; if (b === 'DUSK' || b === 'DAWN') return 'MAGIC'; if (b === 'NIGHT') return 'NIGHT'; return 'DAY' }
+function schedLocKey(sc) { return sc.master || sc.location || '(Unspecified location)' }
+function schedIeLabel(sc) { return sc.intExt === 'INT/EXT' ? 'INT/EXT' : (sc.intExt === 'EXT' ? 'EXT' : 'INT') }
+function schedIeRank(sc, regime) { const ext = sc.intExt === 'EXT' || sc.intExt === 'INT/EXT'; return regime === 'DAY' ? (ext ? 0 : 1) : (ext ? 1 : 0) }
+function schedNatKey(num) { const s = String(num == null ? '' : num); const m = s.match(/^(\d+)(.*)$/); return m ? [parseInt(m[1], 10), m[2]] : [Number.MAX_SAFE_INTEGER, s] }
+
+function buildScheduleDays(scenes, opts) {
+  opts = opts || {}
+  const target = Math.max(8, Math.round((opts.pagesPerDay || 5) * 8))
+  const tol = (opts.tolerance != null ? opts.tolerance : 8)
+  const castOrder = [], castId = {}
+  scenes.forEach((sc) => (sc.characters || []).forEach((c) => { if (!(c in castId)) { castId[c] = castOrder.length + 1; castOrder.push(c) } }))
+  const locFirst = new Map()
+  scenes.forEach((sc, i) => { const k = schedLocKey(sc); if (!locFirst.has(k)) locFirst.set(k, i) })
+  const groups = new Map()
+  scenes.forEach((sc) => {
+    const loc = schedLocKey(sc), reg = schedRegime(sc), key = loc + ' ' + reg
+    if (!groups.has(key)) groups.set(key, { loc, regime: reg, scenes: [] })
+    groups.get(key).scenes.push(sc)
+  })
+  const groupList = [...groups.values()].sort((a, b) => {
+    const la = locFirst.get(a.loc), lb = locFirst.get(b.loc)
+    if (la !== lb) return la - lb
+    return SCHED_REGIME_RANK[a.regime] - SCHED_REGIME_RANK[b.regime]
+  })
+  groupList.forEach((g) => g.scenes.sort((a, b) => {
+    const ra = schedIeRank(a, g.regime), rb = schedIeRank(b, g.regime)
+    if (ra !== rb) return ra - rb
+    const ka = schedNatKey(a.num), kb = schedNatKey(b.num)
+    if (ka[0] !== kb[0]) return ka[0] - kb[0]
+    return ka[1] < kb[1] ? -1 : ka[1] > kb[1] ? 1 : 0
+  }))
+  const days = []
+  for (const g of groupList) {
+    let cur = null
+    for (const sc of g.scenes) {
+      const e = sc.eighths || 0
+      if (!cur || (cur.eighths > 0 && cur.eighths + e > target + tol)) { cur = { loc: g.loc, regime: g.regime, scenes: [], eighths: 0 }; days.push(cur) }
+      cur.scenes.push(sc); cur.eighths += e
+    }
+  }
+  const rows = days.map((d, idx) => {
+    const cast = new Set()
+    d.scenes.forEach((sc) => (sc.characters || []).forEach((c) => cast.add(c)))
+    const ieset = [...new Set(d.scenes.map(schedIeLabel))]
+    return {
+      n: idx + 1, location: d.loc, regime: d.regime, regimeLabel: SCHED_REGIME_LABEL[d.regime],
+      ie: ieset.join(' / '), sceneNums: d.scenes.map((sc) => sc.num), eighths: d.eighths,
+      castNames: castOrder.filter((c) => cast.has(c)), castIds: castOrder.filter((c) => cast.has(c)).map((c) => castId[c])
+    }
+  })
+  return { days: rows, castOrder, castId, targetEighths: target, tolerance: tol }
+}
+function buildDood(plan) {
+  const dayCount = plan.days.length
+  const worksOn = {}
+  plan.castOrder.forEach((c) => worksOn[c] = new Set())
+  plan.days.forEach((d, di) => d.castNames.forEach((c) => worksOn[c].add(di)))
+  const cast = plan.castOrder.map((name) => {
+    const set = worksOn[name], wd = [...set].sort((a, b) => a - b)
+    const codes = new Array(dayCount).fill('')
+    let work = 0, hold = 0
+    if (wd.length) {
+      const first = wd[0], last = wd[wd.length - 1]
+      for (let d = first; d <= last; d++) {
+        if (set.has(d)) { codes[d] = first === last ? 'SWF' : d === first ? 'SW' : d === last ? 'WF' : 'W'; work++ }
+        else { codes[d] = 'H'; hold++ }
+      }
+    }
+    return { id: plan.castId[name], name, codes, work, hold, total: work + hold }
+  })
+  return { dayCount, cast }
+}
+function buildScheduleCSV(scenes, opts) {
+  const plan = buildScheduleDays(scenes, opts)
+  const rows = [['Day', 'Location', 'I/E', 'Day/Night', 'Scenes', 'Pages (1/8)', 'Cast IDs', 'Cast']]
+  plan.days.forEach((d) => rows.push([d.n, d.location, d.ie, d.regimeLabel, d.sceneNums.join(' '), eighthsFmt(d.eighths), d.castIds.join(' '), d.castNames.join('; ')]))
+  return rows.map((r) => r.map(csvCell).join(',')).join('\n')
+}
+function buildDoodCSV(scenes, opts) {
+  const plan = buildScheduleDays(scenes, opts), dood = buildDood(plan)
+  const header = ['ID', 'Character', ...plan.days.map((d) => 'Day ' + d.n), 'Work', 'Hold', 'Total']
+  const rows = [header]
+  dood.cast.forEach((c) => rows.push([c.id, c.name, ...c.codes, c.work, c.hold, c.total]))
+  return rows.map((r) => r.map(csvCell).join(',')).join('\n')
+}
+const SCHED_CAVEAT = 'Draft stripboard generated from ScriptBreak’s auto-parsed breakdown. Cast presence is inferred from dialogue only — silent / background cast are not detected, and page counts may be estimated. This is a starting point, not a locked schedule: it does not account for cast or location availability, company moves, day↔night turnaround, or child / stunt constraints. Verify with your 1st AD before scheduling.'
+
 /* ------------------------------ generators ------------------------------ */
 
 const VIDEO_GENERATORS = Object.keys(PLATFORMS)
@@ -731,6 +831,34 @@ const TOOLS = [
         ...SCOPE_FIELDS
       },
       required: ['generator'],
+      additionalProperties: false
+    }
+  },
+  {
+    name: 'get_schedule',
+    description:
+      'Reproduce ScriptBreak\'s suggested SHOOTING SCHEDULE (draft stripboard): scenes grouped into synthetic shoot days by master location, then lighting regime (DAY / dusk-dawn "MAGIC" / NIGHT), then INT vs EXT, then scene number, and split under a page budget (default 5 pages/day, ±1 page tolerance; one location per day). Returns the ordered day list — each with location, INT/EXT, day/night, scene numbers, page eighths, and the cast IDs working that day — plus the cast key and a byte-identical `csv` of the same table (matching the desktop app). IMPORTANT: cast presence is inferred from DIALOGUE CUES ONLY, so silent/background cast are not detected, and page counts may be estimated — this is a starting point for a 1st AD, not a locked schedule (see the `caveat` field). Scope selectors mirror the app\'s export scope bar; a partial scope yields a partial schedule.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        projectPath: PROJECT_PATH_FIELD,
+        pagesPerDay: { type: 'number', description: 'Target page budget per shoot day (default 5). Days are split when they exceed this by more than ~1 page.' },
+        ...SCOPE_FIELDS
+      },
+      additionalProperties: false
+    }
+  },
+  {
+    name: 'get_day_out_of_days',
+    description:
+      'Reproduce ScriptBreak\'s cast DAY OUT OF DAYS (DOOD) grid from the same suggested schedule as get_schedule: one row per cast member (numbered by first appearance), one column per shoot day, with standard status codes — SW (Start Work), W (Work), WF (Work Finish), SWF (single-day Start-Work-Finish), H (Hold: carried and paid between a performer\'s first and last day) — plus per-cast Work / Hold / Total(span) day counts. Returns the structured grid and a byte-identical `csv` (matching the desktop app). SAME CAVEAT as get_schedule: cast presence is inferred from DIALOGUE ONLY, so a performer on set with no line in a scene is not counted — the DOOD under-reports who is needed; treat it as a preliminary draft. Accepts the same pagesPerDay and scope selectors as get_schedule.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        projectPath: PROJECT_PATH_FIELD,
+        pagesPerDay: { type: 'number', description: 'Target page budget per shoot day (default 5), matching get_schedule.' },
+        ...SCOPE_FIELDS
+      },
       additionalProperties: false
     }
   }
@@ -910,6 +1038,47 @@ function runTool(name, args) {
         scope: scopeLabel(S, exp),
         sceneCount: exportScenes(S, exp).length,
         markdown
+      }
+    }
+    case 'get_schedule': {
+      const path = resolveProjectPath(args)
+      const { S } = loadProject(path)
+      const exp = scopeFromArgs(args)
+      const opts = { pagesPerDay: args.pagesPerDay || 5 }
+      const scenes = exportScenes(S, exp)
+      const plan = buildScheduleDays(scenes, opts)
+      return {
+        projectPath: path,
+        scope: scopeLabel(S, exp),
+        pagesPerDay: opts.pagesPerDay,
+        shootDays: plan.days.length,
+        cast: plan.castOrder.map((name) => ({ id: plan.castId[name], name })),
+        days: plan.days.map((d) => ({
+          day: d.n, location: d.location, intExt: d.ie, dayNight: d.regimeLabel,
+          scenes: d.sceneNums, eighths: d.eighths, pages: +(d.eighths / 8).toFixed(2),
+          castIds: d.castIds, cast: d.castNames
+        })),
+        csv: buildScheduleCSV(scenes, opts),
+        caveat: SCHED_CAVEAT
+      }
+    }
+    case 'get_day_out_of_days': {
+      const path = resolveProjectPath(args)
+      const { S } = loadProject(path)
+      const exp = scopeFromArgs(args)
+      const opts = { pagesPerDay: args.pagesPerDay || 5 }
+      const scenes = exportScenes(S, exp)
+      const plan = buildScheduleDays(scenes, opts)
+      const dood = buildDood(plan)
+      return {
+        projectPath: path,
+        scope: scopeLabel(S, exp),
+        pagesPerDay: opts.pagesPerDay,
+        shootDays: dood.dayCount,
+        legend: { SW: 'Start Work', W: 'Work', WF: 'Work Finish', SWF: 'Start-Work-Finish (single day)', H: 'Hold (carried & paid between first and last day)' },
+        cast: dood.cast.map((c) => ({ id: c.id, name: c.name, codes: c.codes, work: c.work, hold: c.hold, total: c.total })),
+        csv: buildDoodCSV(scenes, opts),
+        caveat: SCHED_CAVEAT
       }
     }
     default: {

@@ -226,13 +226,15 @@ claude mcp add scriptbreak \
   -- node /absolute/path/to/scriptbreak/mcp/scriptbreak-mcp.mjs
 ```
 
-The agent gets nine read-only tools: `get_breakdown`, `list_scenes`,
+The agent gets eleven read-only tools: `get_breakdown`, `list_scenes`,
 `get_scene`, `list_elements`, `get_character_bible`, `get_location_bible`,
-`get_shot_list`, `list_generators`, and `export_prompt_pack` — the last
-reproduces ScriptBreak's AI video, storyboard-frame, coverage-consult, and
-script-companion packs (with the same per-generator dialects) for any scene
-range, page range, or filter. See **[mcp/README.md](mcp/README.md)** for the
-full tool reference and Codex/Hermes/generic config.
+`get_shot_list`, `list_generators`, `export_prompt_pack`, `get_schedule`, and
+`get_day_out_of_days`. `export_prompt_pack` reproduces ScriptBreak's AI video,
+storyboard-frame, coverage-consult, and script-companion packs (with the same
+per-generator dialects) for any scene range, page range, or filter;
+`get_schedule` and `get_day_out_of_days` return the draft shooting schedule and
+cast Day Out of Days. See **[mcp/README.md](mcp/README.md)** for the full tool
+reference and Codex/Hermes/generic config.
 
 ## Privacy
 
