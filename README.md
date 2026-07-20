@@ -137,6 +137,12 @@ CSVs, or everything at once as a zip:
   Seedream, Midjourney). Paste one into ChatGPT, Claude, Gemini, a local
   model — no integration needed. Scope any export to scene ranges, page
   ranges, or your current filters, or download everything as one zip bundle.
+- **Shooting schedule & Day Out of Days** — a draft stripboard that groups
+  scenes into shoot days by location, day/night, and int/ext under a
+  pages-per-day budget, plus the standard cast **Day Out of Days** grid
+  (Start / Work / Hold / Finish per shoot day). Print/PDF or CSV. It's a
+  starting point for your 1st AD — cast presence is read from dialogue, so
+  silent/background cast aren't detected; verify before scheduling.
 - **Zero setup** — no server, no database, no account. Install the app, load a script, and go.
 
 ## Why no API keys
@@ -220,13 +226,15 @@ claude mcp add scriptbreak \
   -- node /absolute/path/to/scriptbreak/mcp/scriptbreak-mcp.mjs
 ```
 
-The agent gets nine read-only tools: `get_breakdown`, `list_scenes`,
+The agent gets eleven read-only tools: `get_breakdown`, `list_scenes`,
 `get_scene`, `list_elements`, `get_character_bible`, `get_location_bible`,
-`get_shot_list`, `list_generators`, and `export_prompt_pack` — the last
-reproduces ScriptBreak's AI video, storyboard-frame, coverage-consult, and
-script-companion packs (with the same per-generator dialects) for any scene
-range, page range, or filter. See **[mcp/README.md](mcp/README.md)** for the
-full tool reference and Codex/Hermes/generic config.
+`get_shot_list`, `list_generators`, `export_prompt_pack`, `get_schedule`, and
+`get_day_out_of_days`. `export_prompt_pack` reproduces ScriptBreak's AI video,
+storyboard-frame, coverage-consult, and script-companion packs (with the same
+per-generator dialects) for any scene range, page range, or structured filter;
+`get_schedule` and `get_day_out_of_days` return the draft shooting schedule and
+cast Day Out of Days. See **[mcp/README.md](mcp/README.md)** for the full tool
+reference and Codex/Hermes/generic config.
 
 ## Privacy
 

@@ -671,7 +671,7 @@ function fallbackCopy(txt){
   let ok=false; try{ ok = document.execCommand('copy'); }catch(e){}
   ta.remove(); return ok;
 }
-function csvCell(v){ v = String(v??''); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; }
+function csvCell(v){ v = String(v??''); if (/^[=+\-@\t\r]/.test(v)) v = "'"+v; return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; }
 
 /* ================= fountain / fdx / txt parsing ================= */
 function parseScript(text, filename){
@@ -1953,6 +1953,7 @@ const HELP_TOPICS = [
       <li><b>Storyboard Frame Pack</b> — stills dialects: GPT Image 2, Nano Banana Pro, Krea 2, Seedream, Midjourney, or any image generator.</li>
       <li><b>Coverage Consult</b> — turns an LLM into a veteran DP/1st AD reviewing your shot list.</li>
       <li><b>Script Companion</b> — your whole breakdown as one context file to interrogate anywhere.</li>
+      <li><b>Shooting Schedule &amp; Day Out of Days</b> (print/PDF + CSV) — a <i>draft</i> stripboard grouping scenes into shoot days by location, day/night and int/ext under a page budget, plus the standard cast DOOD grid (Start / Work / Hold / Finish). Cast presence is read from dialogue only, so silent/background cast aren’t detected — a starting point for your 1st AD, not a locked schedule.</li>
       <li><b>Breakdown sheets</b> (print/PDF), <b>shot list</b> and <b>scene CSVs</b>, and the <b>.scriptbreak</b> project file.</li>
     </ul>
     <p style="margin-top:8px">The <b>Scope</b> bar limits any export to scene ranges (<span class="kbd">1-20, 34, 50A</span>), page ranges, scenes with shots, or your current filters. <b>Everything</b> downloads the lot as one zip.</p>`],
@@ -2559,6 +2560,7 @@ function sceneContextMd(sc, includeText){
 
 /* ---------- export scope ---------- */
 let EXP = { mode:'all', range:'' };
+let SCHED = { pagesPerDay:5 };   // target page budget per synthetic shoot day (schedule/DOOD)
 function scenePageStart(i){
   if (S.scenes[i] && S.scenes[i].page) return S.scenes[i].page;
   let e = 0; for (let j=0;j<i;j++) e += S.scenes[j].eighths||0;
@@ -2836,6 +2838,166 @@ function openBreakdownSheets(){
   w.document.close();
 }
 
+/* ---------- shooting schedule & Day Out of Days ----------
+   A suggested stripboard + the standard cast DOOD grid, derived from the
+   breakdown. The scheduling helpers below are duplicated verbatim in
+   mcp/scriptbreak-mcp.mjs so the app and the MCP server stay in parity —
+   keep the two copies identical. See the caveat banner in the print views:
+   cast presence is inferred from dialogue only, so silent/background cast are
+   not detected — this is a starting point, not a locked AD schedule. */
+const SCHED_REGIME_RANK = { DAY:0, MAGIC:1, NIGHT:2 };
+const SCHED_REGIME_LABEL = { DAY:'DAY', MAGIC:'DUSK/DAWN', NIGHT:'NIGHT' };
+function schedRegime(sc){ const b = sc.todBucket||''; if (b==='DUSK'||b==='DAWN') return 'MAGIC'; if (b==='NIGHT') return 'NIGHT'; return 'DAY'; }
+function schedLocKey(sc){ return sc.master || sc.location || '(Unspecified location)'; }
+function schedIeLabel(sc){ return sc.intExt==='INT/EXT' ? 'INT/EXT' : (sc.intExt==='EXT' ? 'EXT' : 'INT'); }
+function schedIeRank(sc, regime){ const ext = sc.intExt==='EXT' || sc.intExt==='INT/EXT'; return regime==='DAY' ? (ext?0:1) : (ext?1:0); }
+function schedNatKey(num){ const s = String(num==null?'':num); const m = s.match(/^(\d+)(.*)$/); return m ? [parseInt(m[1],10), m[2]] : [Number.MAX_SAFE_INTEGER, s]; }
+
+// Group scenes into a suggested stripboard: location -> lighting regime
+// (DAY / MAGIC=dusk-dawn / NIGHT) -> INT vs EXT -> scene#, then break into
+// ~pagesPerDay days (one location per day, ±1 page soft overflow).
+function buildScheduleDays(scenes, opts){
+  opts = opts||{};
+  const target = Math.max(8, Math.round((opts.pagesPerDay||5)*8));
+  const tol = (opts.tolerance!=null ? opts.tolerance : 8);
+  const castOrder = [], castId = {};
+  scenes.forEach(sc=>(sc.characters||[]).forEach(c=>{ if (!(c in castId)){ castId[c]=castOrder.length+1; castOrder.push(c); } }));
+  const locFirst = new Map();
+  scenes.forEach((sc,i)=>{ const k = schedLocKey(sc); if (!locFirst.has(k)) locFirst.set(k,i); });
+  const groups = new Map();
+  scenes.forEach(sc=>{ const loc = schedLocKey(sc), reg = schedRegime(sc), key = loc+' '+reg;
+    if (!groups.has(key)) groups.set(key, { loc, regime:reg, scenes:[] });
+    groups.get(key).scenes.push(sc); });
+  const groupList = [...groups.values()].sort((a,b)=>{
+    const la = locFirst.get(a.loc), lb = locFirst.get(b.loc);
+    if (la!==lb) return la-lb;
+    return SCHED_REGIME_RANK[a.regime]-SCHED_REGIME_RANK[b.regime]; });
+  groupList.forEach(g=>g.scenes.sort((a,b)=>{
+    const ra = schedIeRank(a,g.regime), rb = schedIeRank(b,g.regime);
+    if (ra!==rb) return ra-rb;
+    const ka = schedNatKey(a.num), kb = schedNatKey(b.num);
+    if (ka[0]!==kb[0]) return ka[0]-kb[0];
+    return ka[1]<kb[1]?-1:ka[1]>kb[1]?1:0; }));
+  const days = [];
+  for (const g of groupList){
+    let cur = null;
+    for (const sc of g.scenes){ const e = sc.eighths||0;
+      if (!cur || (cur.eighths>0 && cur.eighths+e > target+tol)){ cur = { loc:g.loc, regime:g.regime, scenes:[], eighths:0 }; days.push(cur); }
+      cur.scenes.push(sc); cur.eighths += e; }
+  }
+  const rows = days.map((d,idx)=>{
+    const cast = new Set();
+    d.scenes.forEach(sc=>(sc.characters||[]).forEach(c=>cast.add(c)));
+    const ieset = [...new Set(d.scenes.map(schedIeLabel))];
+    return { n:idx+1, location:d.loc, regime:d.regime, regimeLabel:SCHED_REGIME_LABEL[d.regime],
+      ie:ieset.join(' / '), sceneNums:d.scenes.map(sc=>sc.num), eighths:d.eighths,
+      castNames:castOrder.filter(c=>cast.has(c)), castIds:castOrder.filter(c=>cast.has(c)).map(c=>castId[c]) };
+  });
+  return { days:rows, castOrder, castId, targetEighths:target, tolerance:tol };
+}
+// Day Out of Days from a plan. Codes: SW start · W work · WF finish · SWF one-day · H hold (paid).
+function buildDood(plan){
+  const dayCount = plan.days.length;
+  const worksOn = {};
+  plan.castOrder.forEach(c=>worksOn[c]=new Set());
+  plan.days.forEach((d,di)=>d.castNames.forEach(c=>worksOn[c].add(di)));
+  const cast = plan.castOrder.map(name=>{
+    const set = worksOn[name], wd = [...set].sort((a,b)=>a-b);
+    const codes = new Array(dayCount).fill('');
+    let work = 0, hold = 0;
+    if (wd.length){ const first = wd[0], last = wd[wd.length-1];
+      for (let d=first; d<=last; d++){
+        if (set.has(d)){ codes[d] = first===last?'SWF':d===first?'SW':d===last?'WF':'W'; work++; }
+        else { codes[d] = 'H'; hold++; } } }
+    return { id:plan.castId[name], name, codes, work, hold, total:work+hold };
+  });
+  return { dayCount, cast };
+}
+function buildScheduleCSV(scenes, opts){
+  const plan = buildScheduleDays(scenes, opts);
+  const rows = [[SCHED_CSV_NOTE], ['Day','Location','I/E','Day/Night','Scenes','Pages (1/8)','Cast IDs','Cast']];
+  plan.days.forEach(d=>rows.push([d.n, d.location, d.ie, d.regimeLabel, d.sceneNums.join(' '), eighthsFmt(d.eighths), d.castIds.join(' '), d.castNames.join('; ')]));
+  return rows.map(r=>r.map(csvCell).join(',')).join('\n');
+}
+function buildDoodCSV(scenes, opts){
+  const plan = buildScheduleDays(scenes, opts), dood = buildDood(plan);
+  const header = ['ID','Character', ...plan.days.map(d=>'Day '+d.n), 'Work','Hold','Total'];
+  const rows = [[SCHED_CSV_NOTE], header];
+  dood.cast.forEach(c=>rows.push([c.id, c.name, ...c.codes, c.work, c.hold, c.total]));
+  return rows.map(r=>r.map(csvCell).join(',')).join('\n');
+}
+
+const SCHED_CAVEAT = 'Draft stripboard generated from ScriptBreak’s auto-parsed breakdown. Cast presence is inferred from dialogue only — silent / background cast are not detected, and page counts may be estimated. This is a starting point, not a locked schedule: it does not account for cast or location availability, company moves, day↔night turnaround, or child / stunt constraints. Verify with your 1st AD before scheduling.';
+const SCHED_CSV_NOTE = 'DRAFT — auto-parsed from dialogue only. Cast presence may be incomplete. Not a locked schedule — verify with your 1st AD.';
+
+function schedPrintHead(title){
+  return `<!DOCTYPE html><html><head><title>${esc(S.title)} — ${esc(title)}</title><style>
+    body{font-family:-apple-system,Segoe UI,sans-serif;margin:0;padding:24px;color:#111}
+    h1{font-size:19px;margin:0 0 2px} .sub{font-size:12px;color:#555;margin-bottom:12px;font-family:Menlo,monospace}
+    .caveat{border:1px solid #d9a441;background:#fdf6e3;color:#6a4b12;font-size:12px;line-height:1.5;padding:10px 14px;border-radius:6px;margin-bottom:16px}
+    .stats{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+    .stat{border:1px solid #ccc;border-radius:8px;padding:8px 14px} .stat .v{font-size:17px;font-weight:700;font-family:Menlo,monospace} .stat .k{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#666}
+    .day{border:2px solid #111;border-radius:2px;margin-bottom:12px;page-break-inside:avoid}
+    .day-head{display:flex;justify-content:space-between;align-items:baseline;background:#f3f3f3;border-bottom:2px solid #111;padding:9px 14px}
+    .day-head .d{font-size:14px;font-weight:800;font-family:Menlo,monospace} .day-head .m{font-size:12px;color:#333;font-family:Menlo,monospace}
+    .day-body{padding:9px 14px;font-size:13px} .day-body .lbl{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#666;margin-right:6px}
+    table{border-collapse:collapse;width:100%;font-size:12px} th,td{border:1px solid #bbb;padding:5px 7px;text-align:center} th{background:#f3f3f3}
+    td.name,th.name{text-align:left;white-space:nowrap} td.h{background:#eee;color:#888} td.w{font-weight:700}
+    .legend{font-size:11px;color:#444;margin-top:10px;line-height:1.6} .key{font-size:11px;color:#444;margin-top:14px;line-height:1.7}
+    @media print{.day{margin-bottom:8px}}
+  </style></head><body>`;
+}
+function schedCastKey(plan){
+  return plan.castOrder.length
+    ? `<div class="key"><b>Cast key</b> &nbsp;` + plan.castOrder.map(c=>`<b>${plan.castId[c]}</b> ${esc(c)}`).join(' &nbsp;·&nbsp; ') + `</div>`
+    : '';
+}
+function openScheduleSheet(){
+  const w = window.open('', '_blank');
+  if (!w){ toast('Popup blocked — allow popups to print the schedule'); return; }
+  const plan = buildScheduleDays(exportScenes(), SCHED);
+  const totalE = plan.days.reduce((n,d)=>n+d.eighths,0);
+  const locs = new Set(plan.days.map(d=>d.location));
+  const moves = plan.days.reduce((n,d,i)=> n + (i>0 && plan.days[i-1].location!==d.location ? 1 : 0), 0);
+  const daysHtml = plan.days.map(d=>`
+    <div class="day"><div class="day-head">
+      <span class="d">DAY ${d.n}</span>
+      <span class="m">${esc(d.location)} · ${esc(d.ie)} · ${esc(d.regimeLabel)} · ${eighthsFmt(d.eighths)} pg</span></div>
+      <div class="day-body">
+        <div><span class="lbl">Scenes</span>${d.sceneNums.map(esc).join(', ')}</div>
+        <div style="margin-top:5px"><span class="lbl">Cast</span>${d.castIds.length? d.castIds.map(i=>`<b>${i}</b>`).join(', ') : '—'}${d.castNames.length? ' <span style="color:#666">('+d.castNames.map(esc).join(', ')+')</span>':''}</div>
+      </div></div>`).join('');
+  w.document.write(schedPrintHead('Shooting Schedule') +
+    `<h1>${esc(S.title)} — Suggested Shooting Schedule</h1>
+     <div class="sub">${esc(scopeLabel())} · target ${SCHED.pagesPerDay} pg/day · generated ${new Date().toLocaleDateString()}</div>
+     <div class="caveat">${esc(SCHED_CAVEAT)}</div>
+     <div class="stats">
+       <div class="stat"><div class="v">${plan.days.length}</div><div class="k">Shoot days</div></div>
+       <div class="stat"><div class="v">${(totalE/8).toFixed(1)}</div><div class="k">Pages</div></div>
+       <div class="stat"><div class="v">${locs.size}</div><div class="k">Locations</div></div>
+       <div class="stat"><div class="v">${moves}</div><div class="k">Location changes</div></div>
+     </div>${daysHtml}${schedCastKey(plan)}<script>window.print()<\/script></body></html>`);
+  w.document.close();
+}
+function openDoodSheet(){
+  const w = window.open('', '_blank');
+  if (!w){ toast('Popup blocked — allow popups to print the DOOD'); return; }
+  const plan = buildScheduleDays(exportScenes(), SCHED), dood = buildDood(plan);
+  const dayCols = plan.days.map(d=>`<th title="${esc(d.location)} · ${esc(d.regimeLabel)}">${d.n}</th>`).join('');
+  const body = dood.cast.map(c=>`<tr><td>${c.id}</td><td class="name">${esc(c.name)}</td>${
+    c.codes.map(x=>`<td class="${x==='H'?'h':(x?'w':'')}">${x||''}</td>`).join('')
+  }<td>${c.work}</td><td>${c.hold}</td><td><b>${c.total}</b></td></tr>`).join('');
+  w.document.write(schedPrintHead('Day Out of Days') +
+    `<h1>${esc(S.title)} — Day Out of Days</h1>
+     <div class="sub">${dood.cast.length} cast · ${plan.days.length} shoot days · ${esc(scopeLabel())} · generated ${new Date().toLocaleDateString()}</div>
+     <div class="caveat">${esc(SCHED_CAVEAT)}</div>
+     <table><thead><tr><th>ID</th><th class="name">Character</th>${dayCols}<th>W</th><th>H</th><th>Tot</th></tr></thead>
+     <tbody>${body || '<tr><td colspan="99" style="color:#888">No cast with dialogue detected in scope.</td></tr>'}</tbody></table>
+     <div class="legend"><b>Codes:</b> <b>SW</b> Start&nbsp;Work · <b>W</b> Work · <b>WF</b> Work&nbsp;Finish · <b>SWF</b> Start-Work-Finish (single day) · <b>H</b> Hold (carried &amp; paid between first and last day). <b>W</b>/<b>H</b>/<b>Tot</b> = work days / hold days / total (span). Cast appear only where they have dialogue.</div>
+     ${schedCastKey(plan)}<script>window.print()<\/script></body></html>`);
+  w.document.close();
+}
+
 /* ---------- export UI ---------- */
 function fileStub(){ return (S.title||'script').replace(/[^\w\- ]+/g,'').trim().replace(/\s+/g,'_') || 'script'; }
 
@@ -2893,6 +3055,9 @@ WHAT'S IN HERE
   self-executing AI documents. Paste any of them, whole, into any LLM (Claude, ChatGPT,
   Gemini...) and it will follow the instructions inside. No API keys needed.
 - shotlist.csv / scenes.csv: spreadsheets for scheduling and set work.
+- shooting_schedule.csv / day_out_of_days.csv: a DRAFT stripboard + cast Day Out of Days,
+  grouped from the breakdown. Cast presence is inferred from dialogue only (silent/background
+  cast are not detected) — a starting point to hand your 1st AD, not a locked schedule.
 - ${stub}.scriptbreak: the full project file. Open it with ScriptBreak.
 ` },
     { name: stub+'/video_prompts_'+vp+'.md', content: buildVideoPack(vp, 'all') },
@@ -2901,6 +3066,8 @@ WHAT'S IN HERE
     { name: stub+'/script_companion.md', content: buildChatPack() },
     { name: stub+'/shotlist.csv', content: buildShotCSV() },
     { name: stub+'/scenes.csv', content: buildSceneCSV() },
+    { name: stub+'/shooting_schedule.csv', content: buildScheduleCSV(exportScenes(), SCHED) },
+    { name: stub+'/day_out_of_days.csv', content: buildDoodCSV(exportScenes(), SCHED) },
     { name: stub+'/'+stub+'.scriptbreak', content: JSON.stringify(serialize(),null,2) },
   ];
   const blob = makeZip(files);
@@ -2958,12 +3125,22 @@ function renderExport(){
       <p>One row per scene: slug, page count, cast, and every tagged element by category. The skeleton of a schedule.</p>
       <button class="btn" id="expSceneCsv">Download CSV</button></div>
 
+    <div class="exp-card" style="grid-column:1/-1"><h3><span class="ic">🗓</span> Shooting Schedule &amp; Day Out of Days <span class="badge util">Draft · Print / .csv</span></h3>
+      <p>A suggested stripboard — scenes grouped into shoot days by location, day/night, and int/ext under a page budget — plus a cast <b>Day Out of Days</b> grid (Start / Work / Hold / Finish per shoot day). A starting point from the breakdown, not a locked AD schedule: cast presence comes from dialogue only, so silent/background cast aren’t detected. Verify before scheduling.</p>
+      <div class="opts">
+        <label style="font-size:12px;color:var(--tx2)">Target <input id="schedPPD" type="number" min="1" max="12" step="0.5" value="${SCHED.pagesPerDay}" style="width:58px;padding:5px 7px"> pg/day</label>
+        <button class="btn" id="expSchedSheet">Schedule (print)</button>
+        <button class="btn" id="expSchedCsv">Schedule CSV</button>
+        <button class="btn" id="expDoodSheet">DOOD (print)</button>
+        <button class="btn" id="expDoodCsv">DOOD CSV</button>
+      </div></div>
+
     <div class="exp-card"><h3><span class="ic">💾</span> Project File <span class="badge util">.scriptbreak</span></h3>
       <p>Your whole project — script, tags, shots, bibles, look — as one portable JSON file. Open it on any machine running ScriptBreak.</p>
       <button class="btn" id="expProj">Save project</button></div>
 
     <div class="exp-card" style="border-color:var(--amber)"><h3><span class="ic">📦</span> Everything <span class="badge">.zip</span></h3>
-      <p>One download with all of it: video + frame prompt packs (using the platforms selected above), coverage consult, script companion, both CSVs, the project file, and a README.</p>
+      <p>One download with all of it: video + frame prompt packs (using the platforms selected above), coverage consult, script companion, the shot-list &amp; scene CSVs, a draft shooting schedule &amp; Day Out of Days, the project file, and a README.</p>
       <button class="btn primary" id="expAll">Download bundle</button></div>`;
 
   el('expVideo').addEventListener('click', ()=>{
@@ -2982,6 +3159,12 @@ function renderExport(){
   el('expRange').addEventListener('input', ()=>{ EXP.range = el('expRange').value; el('expScopeNote').textContent = 'Exporting '+scopeLabel()+'. Applies to every export on this page.'; });
   el('expShotCsv').addEventListener('click', ()=>{ download(fileStub()+'_shotlist.csv', buildShotCSV(), 'text/csv'); toast('Shot list downloaded', true); });
   el('expSceneCsv').addEventListener('click', ()=>{ download(fileStub()+'_scenes.csv', buildSceneCSV(), 'text/csv'); toast('Scene summary downloaded', true); });
+  const ppd = el('schedPPD');
+  if (ppd) ppd.addEventListener('change', ()=>{ const v = parseFloat(ppd.value); if (v>0){ SCHED.pagesPerDay = v; } else { ppd.value = SCHED.pagesPerDay; } });
+  el('expSchedSheet').addEventListener('click', openScheduleSheet);
+  el('expSchedCsv').addEventListener('click', ()=>{ download(fileStub()+'_shooting_schedule.csv', buildScheduleCSV(exportScenes(), SCHED), 'text/csv'); toast('Shooting schedule downloaded', true); });
+  el('expDoodSheet').addEventListener('click', openDoodSheet);
+  el('expDoodCsv').addEventListener('click', ()=>{ download(fileStub()+'_day_out_of_days.csv', buildDoodCSV(exportScenes(), SCHED), 'text/csv'); toast('Day Out of Days downloaded', true); });
   el('expProj').addEventListener('click', ()=>el('btnSaveProj').click());
 }
 
