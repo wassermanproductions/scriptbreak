@@ -2590,7 +2590,7 @@ function exportScenes(){
     case 'pages': {
       const r = parseRangeSet(EXP.range);
       if (r.empty) return all;
-      return all.filter((sc,i)=>r.has('', scenePageStart(i)));
+      return all.filter((sc,i)=>{ const p = scenePageStart(i); return r.has(p, p); });
     }
     default: return all;
   }
