@@ -473,7 +473,8 @@ ${charB.length ? charB.join('\n') : '_No character descriptions defined. Invent 
 
 ${locB.length ? locB.join('\n') : '_No location descriptions defined. Establish each location with consistent, specific detail and reuse it._'}
 
-${propB.length ? '## PROP BIBLE\n\n' + propB.join('\n') + '\n' : ''}## SHOTS TO GENERATE
+${propB.length ? '## PROP BIBLE\n\n' + propB.join('\n') + '\n' : ''}
+## SHOTS TO GENERATE
 
 `
   let total = 0
@@ -523,7 +524,8 @@ ${charB.length ? charB.join('\n') : '_None defined — invent consistent looks a
 
 ${locB.length ? locB.join('\n') : '_None defined — keep each location visually consistent across frames._'}
 
-${propB.length ? '## PROP BIBLE\n\n' + propB.join('\n') + '\n' : ''}## FRAMES TO GENERATE
+${propB.length ? '## PROP BIBLE\n\n' + propB.join('\n') + '\n' : ''}
+## FRAMES TO GENERATE
 
 `
   for (const sc of scenes) {
@@ -573,6 +575,7 @@ You are now a producing/AD assistant with complete knowledge of the screenplay b
 ${lookBlock(S)}
 
 ${styleGuideBlock(S)}
+
 ### Bibles
 ${['characters', 'locations', 'props'].map((t) => {
     const rows = Object.entries(S.bibles[t]).filter(([, v]) => v.desc && v.desc.trim()).map(([k, v]) => `- **${k}** (${t.slice(0, -1)}): ${v.desc.trim().replace(/\n+/g, ' ')}`)
