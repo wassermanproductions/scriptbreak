@@ -137,6 +137,12 @@ CSVs, or everything at once as a zip:
   Seedream, Midjourney). Paste one into ChatGPT, Claude, Gemini, a local
   model — no integration needed. Scope any export to scene ranges, page
   ranges, or your current filters, or download everything as one zip bundle.
+- **Shooting schedule & Day Out of Days** — a draft stripboard that groups
+  scenes into shoot days by location, day/night, and int/ext under a
+  pages-per-day budget, plus the standard cast **Day Out of Days** grid
+  (Start / Work / Hold / Finish per shoot day). Print/PDF or CSV. It's a
+  starting point for your 1st AD — cast presence is read from dialogue, so
+  silent/background cast aren't detected; verify before scheduling.
 - **Zero setup** — no server, no database, no account. Install the app, load a script, and go.
 
 ## Why no API keys
