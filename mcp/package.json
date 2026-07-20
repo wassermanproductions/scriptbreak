@@ -1,0 +1,13 @@
+{
+  "name": "scriptbreak-mcp",
+  "version": "1.0.0",
+  "description": "Headless MCP stdio server for ScriptBreak — read a saved screenplay breakdown (scenes, elements, bibles, shot lists) and export ScriptBreak's own AI prompt packs from Claude Code, Codex, Hermes, or any MCP client, without the desktop app.",
+  "type": "module",
+  "bin": { "scriptbreak-mcp": "./scriptbreak-mcp.mjs" },
+  "engines": { "node": ">=18" },
+  "author": "Sam Wasserman (https://wassermanproductions.com)",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/wassermanproductions/scriptbreak",
+  "repository": { "type": "git", "url": "https://github.com/wassermanproductions/scriptbreak.git" },
+  "keywords": ["mcp", "model-context-protocol", "scriptbreak", "screenplay-breakdown", "shot-list", "prompt-pack", "filmmaking", "previsualization", "ai-video"]
+}

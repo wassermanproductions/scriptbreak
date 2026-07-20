@@ -204,6 +204,30 @@ works in installed desktop builds (see [Quick start](#quick-start) /
 association when the app is installed (Windows/Linux) or, on macOS, the
 first time the app is launched.
 
+## Agent control (MCP)
+
+ScriptBreak ships a headless **[MCP server](mcp/)** so an AI agent — Claude
+Code, Codex, Hermes, or any MCP client — can read a saved breakdown and export
+ScriptBreak's own prompt packs straight from a `.scriptbreak` file, without
+opening the app. It's zero-dependency and needs only Node ≥ 18.
+
+Point it at a project you saved with **Save project**, then add it to Claude
+Code:
+
+```bash
+claude mcp add scriptbreak \
+  --env SCRIPTBREAK_PROJECT=/absolute/path/to/your/project.scriptbreak \
+  -- node /absolute/path/to/scriptbreak/mcp/scriptbreak-mcp.mjs
+```
+
+The agent gets nine read-only tools: `get_breakdown`, `list_scenes`,
+`get_scene`, `list_elements`, `get_character_bible`, `get_location_bible`,
+`get_shot_list`, `list_generators`, and `export_prompt_pack` — the last
+reproduces ScriptBreak's AI video, storyboard-frame, coverage-consult, and
+script-companion packs (with the same per-generator dialects) for any scene
+range, page range, or filter. See **[mcp/README.md](mcp/README.md)** for the
+full tool reference and Codex/Hermes/generic config.
+
 ## Privacy
 
 ScriptBreak has no server, no accounts, and no telemetry — it does its work
