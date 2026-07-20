@@ -310,7 +310,7 @@ function exportScenes(S, exp) {
     case 'pages': {
       const r = parseRangeSet(exp.range)
       if (r.empty) return all
-      return all.filter((sc, i) => r.has('', scenePageStart(S, i)))
+      return all.filter((sc, i) => { const p = scenePageStart(S, i); return r.has(p, p) })
     }
     default: return all
   }
