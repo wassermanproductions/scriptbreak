@@ -2,7 +2,7 @@
 
 Headless MCP (Model Context Protocol) server for **[ScriptBreak](https://github.com/wassermanproductions/scriptbreak)** — the local-first screenplay breakdown app. With this server connected, an AI agent can read a ScriptBreak breakdown and export its prompt packs **without opening the desktop app** — it works directly on a saved `.scriptbreak` project file on disk.
 
-An agent can pull the breakdown summary, list and read scenes, filter elements by category, read the character and location bibles, get the shot list, and reproduce ScriptBreak's own AI prompt packs (video, stills, coverage consult, script companion) for any scene range, page range, or filter — byte-for-byte the same markdown the app writes.
+An agent can pull the breakdown summary, list and read scenes, filter elements by category, read the character and location bibles, get the shot list, reproduce ScriptBreak's own AI prompt packs (video, stills, coverage consult, script companion) for any scene range, page range, or structured filter — the same markdown the app writes — and generate a draft shooting schedule and cast Day Out of Days.
 
 Zero dependencies. Node ≥ 18. One file.
 
@@ -77,7 +77,7 @@ mcp_servers:
 }
 ```
 
-## Tools (9)
+## Tools (11)
 
 Call **`get_breakdown` first** — its response explains the data conventions (scenes, elements by category, page counts in 1/8ths, bibles, generators).
 
@@ -92,20 +92,24 @@ Call **`get_breakdown` first** — its response explains the data conventions (s
 | `get_shot_list` | The shot list grouped by scene (size, angle, movement, lens, description). Optionally scoped. |
 | `list_generators` | The prompt-pack targets: video (Veo 3, Runway, Kling, ComfyUI, Wan 2.2, LTX 2.3, Seedance), stills (GPT Image 2, Nano Banana Pro, Krea 2, Seedream, Midjourney), plus coverage consult and script companion. |
 | `export_prompt_pack` | Reproduce ScriptBreak's own prompt pack as markdown for a chosen `generator` and scope — the video/stills pack (PROJECT LOOK + bibles + per-generator platform style guide + scene-by-scene shots), the coverage consult, or the script companion. |
+| `get_schedule` | Reproduce ScriptBreak's suggested **shooting schedule** (draft stripboard): scenes grouped into synthetic shoot days by location → day/night → int/ext under a page budget (`pagesPerDay`, default 5). Returns the ordered day list (location, I/E, D/N, scenes, page eighths, cast IDs) plus a byte-identical `csv`. |
+| `get_day_out_of_days` | Reproduce ScriptBreak's cast **Day Out of Days** grid from that schedule — one row per cast member, one column per shoot day, standard codes (SW/W/WF/SWF/H) and Work/Hold/Total counts, plus a byte-identical `csv`. |
+
+> ⚠️ `get_schedule` / `get_day_out_of_days` are a **draft**. Cast presence is inferred from **dialogue cues only**, so silent/background cast are not detected and the DOOD under-reports who's needed; page counts may be estimated; and no cast/location availability, company moves, or turnaround are modelled. Every response includes a `caveat` field saying so. Treat it as a starting point for a 1st AD, not a locked schedule.
 
 ### Scope selectors
 
-`list_scenes`, `get_shot_list`, and `export_prompt_pack` accept the same scope selectors as ScriptBreak's export scope bar:
+`list_scenes`, `get_shot_list`, `export_prompt_pack`, `get_schedule`, and `get_day_out_of_days` accept the same scope selectors as ScriptBreak's export scope bar:
 
 - `scope: "all"` (default) — every scene.
 - `scope: "scenes"` + `sceneRange: "1-20, 34, 50A"` — a scene-number range/list.
 - `scope: "pages"` + `pageRange: "1-12"` — a page range.
 - `scope: "shots"` — only scenes that have a shot list.
-- `scope: "filter"` + any of `int`, `ext`, `day`, `night`, `character`, `location` — the breakdown filters.
+- `scope: "filter"` + any of `int`, `ext`, `day`, `night`, `character`, `location` — the breakdown's **structured** filters. (The app's free-text search box is a live-UI concept and is not reproduced here; `character`/`location` match exactly. With no criteria set, `filter` returns all scenes.)
 
 (Passing `sceneRange` / `pageRange` / a filter without `scope` implies the matching scope.)
 
-The prompt-pack markdown — header, PROJECT LOOK block, character/location/prop bibles, the per-generator platform style guide, and the scene-by-scene shot listing — is generated from the same templates and per-generator dialects ScriptBreak uses internally, so packs produced here match the app's exports exactly.
+The prompt-pack markdown — header, PROJECT LOOK block, character/location/prop bibles, the per-generator platform style guide, and the scene-by-scene shot listing — is generated from the same templates and per-generator dialects ScriptBreak uses internally, so packs produced here match the app's exports byte-for-byte for `all` / scene / page scopes (the `filter` scope reproduces the structured toggles only, and the header's generation-date line is naturally locale- and day-dependent).
 
 A typical agent session: `get_breakdown` → `list_scenes` (with a filter) → `get_scene` for the beats that matter → `export_prompt_pack` with a video or stills generator over a scene range → hand the markdown to your generator.
 
